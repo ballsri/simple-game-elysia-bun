@@ -1,0 +1,17 @@
+{
+  "name": "simple-game-elysia-bun",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "elysia": "^1.1.6",
+    "ioredis": "^5.4.1",
+    "kafkajs": "^2.2.4",
+    "pixi.js": "^8.3.3"
+  }
+}
