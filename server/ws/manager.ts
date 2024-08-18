@@ -36,5 +36,5 @@ class WebSocketManager {
     console.log("Connection removed", this.connections.size, this.gateway.size);
   }
 }
-
-export { WebSocketManager };
+const webSocketManager = new WebSocketManager();
+export default webSocketManager;

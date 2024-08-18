@@ -1,6 +1,11 @@
-import type { PlayerPosition } from "./player";
+import type { PlayerPosition, WebSocketData } from "./player";
 
 export type MovePlayerMessage = {
+  userId: string;
+  position: PlayerPosition;
+} & WebSocketData;
+
+export type JoinMessage = {
     userId: string;
-    position: PlayerPosition;
-}
+    name: string;
+} & WebSocketData;

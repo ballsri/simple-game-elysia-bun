@@ -1,16 +1,16 @@
 import { Elysia } from "elysia";
 import { Redis } from "ioredis";
-import type { GenericPayload, MovePlayerPayload } from "./types/message";
+import type { GenericPayload, JoinPayload, MovePlayerPayload } from "./types/message";
 import type { Player } from "./types/player";
 import { WebSocketGateway } from "./ws/gateway";
-import { WebSocketManager } from "./ws/manager";
-import MqAdapter from "./mq/mq";
-import mq from "./mq/mq";
+import webSocketManager from "./ws/manager";
 
-export const redis = new Redis(6000, "localhost");
+import mq from "./mq/mq";
+import { env } from "./env";
+
+export const players: Record<string, Player> = {};
+export const redis = new Redis(env.REDIS_PORT, env.REDIS_HOST);
 const app = new Elysia();
-const players: Record<string, Player> = {};
-const webSocketManager = new WebSocketManager();
 app.ws("/jsonrpc", {
   open: (socket) => {
     webSocketManager.addConnection(socket.id, socket);
@@ -30,6 +30,10 @@ app.ws("/jsonrpc", {
     }
     // TODO: publish the message to specific mq partition based on user id and sharding mechanism
     switch (data.method) {
+      case "join":
+        let joinData = data as JoinPayload;
+        gateway.join(joinData);
+        break;
       case "movePlayer":
         let movePlayerData = data as MovePlayerPayload;
         gateway.movePlayer(movePlayerData);
@@ -51,13 +55,16 @@ app.ws("/jsonrpc", {
     webSocketManager.removeConnection(socket.id);
   },
 });
+
 process.on("SIGTERM", async () => {
-  await mq.consumer?.stop();
-  await mq.consumer?.disconnect();
+  for (const consumer of Object.values(mq.consumers)) {
+    await consumer.stop();
+    await consumer.disconnect();
+  }
   console.log("Kafka consumer disconnected successfully.");
 });
 
-app.listen(3000, () => {
-  console.log("Server is running on http://localhost:3000");
+app.listen(env.SERVER_PORT, () => {
+  console.log("Server is running on http://localhost:" + env.SERVER_PORT);
 });
 

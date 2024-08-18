@@ -1,11 +1,17 @@
-export interface Player {
-  userId: string;
-  webSocketId: string;
-  name: string;
-  position: PlayerPosition;
-  hp: number;
-  maxHp: number;
-  attackPower: number;
+export interface WebSocketData {
+    webSocketId: string;
+}
+
+export interface PlayerInfo extends WebSocketData {
+    userId: string;
+    name: string;
+}
+
+export interface Player extends PlayerInfo {
+    position: PlayerPosition;
+    hp: number;
+    maxHp: number;
+    attackPower: number;
 }
 
 export interface PlayerPosition {

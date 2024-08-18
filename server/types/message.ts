@@ -1,4 +1,4 @@
-import type { PlayerPosition } from "./player";
+import type { Player, PlayerInfo, PlayerPosition, WebSocketData } from "./player";
 
 export interface GenericPayload {
   jsonrpc: string;
@@ -7,8 +7,12 @@ export interface GenericPayload {
   params: any;
 }
 
+export interface JoinPayload extends GenericPayload {
+  params: PlayerInfo
+}
+
 export interface MovePlayerPayload extends GenericPayload {
-  params: PlayerPosition;
+  params: PlayerPosition
 }
 
 export interface ChatPayload extends GenericPayload {
