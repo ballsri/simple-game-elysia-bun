@@ -2,7 +2,7 @@ import type { Player, PlayerInfo, PlayerPosition, WebSocketData } from "./player
 
 export interface GenericPayload {
   jsonrpc: string;
-  id: number;
+  id: string;
   method: string;
   params: any;
 }

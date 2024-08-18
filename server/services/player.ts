@@ -27,7 +27,7 @@ class PlayerService {
       return connection.socket.send(
         JSON.stringify({
           jsonrpc: "2.0",
-          id: null,
+          id: message.requestId,
           error: {
             code: -32602,
             message: "Invalid join message",
@@ -36,11 +36,11 @@ class PlayerService {
       );
     }
     if (players[message.userId]) {
-      console.error("Player already exists");
+      console.error("Player already joined");
       return connection.socket.send(
         JSON.stringify({
           jsonrpc: "2.0",
-          id: null,
+          id: message.requestId,
           result: players[message.userId],
         })
       );
@@ -64,12 +64,21 @@ class PlayerService {
 
     // add player to players
     players[message.userId] = player;
+
+    // update player position
+    await this.updatePlayerPosition(
+      message.userId,
+      player.position.mapId,
+      player.position.x,
+      player.position.y
+    );
+
     // reply to the player
 
     connection.socket.send(
       JSON.stringify({
         jsonrpc: "2.0",
-        id: null,
+        id: message.requestId,
         result: {
           userId: player.userId,
           name: player.name,
@@ -81,7 +90,9 @@ class PlayerService {
       })
     );
 
-    // TODO: send player position to all clients nearby
+    // send player position to all clients nearby
+
+    await this.notifyNearbyPlayersPositionUpdate(player);
   }
 
   async movePlayer(message: MovePlayerMessage) {
@@ -116,48 +127,12 @@ class PlayerService {
     connection.socket.send(
       JSON.stringify({
         jsonrpc: "2.0",
-        id: null,
+        id: message.requestId,
         result: response,
       })
     );
-    // get nearby players
-    const radius = env.NOTIFY_PLAYER_RADIUS;
-    const nearbyPlayerToUpdated = await this.getNearbyPlayers(
-      player.userId,
-      player.position.mapId,
-      message.position.x,
-      message.position.y,
-      radius
-    );
-    console.log("Nearby players to update:", nearbyPlayerToUpdated);
-
-    // notify nearby players
-    for (const playerId of nearbyPlayerToUpdated) {
-      const nearbyPlayer = players[playerId];
-      if (!nearbyPlayer) {
-        console.error("Nearby player not found");
-        continue;
-      }
-      const nearbyPlayerConnection = webSocketManager.getConnection(nearbyPlayer.webSocketId);
-      if (!nearbyPlayerConnection || !nearbyPlayerConnection.socket) {
-        console.error(
-          "Connection not found for nearby player",
-          nearbyPlayer.userId
-        );
-        continue;
-      }
-      nearbyPlayerConnection.socket.send(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: null,
-          method: "playerPositionUpdate",
-          params: {
-            userId: player.userId,
-            position: player.position,
-          },
-        })
-      );
-    }
+    // get nearby players and notify them
+    await this.notifyNearbyPlayersPositionUpdate(player);
   }
 
   // Calculate the sector ID based on player coordinates
@@ -280,25 +255,27 @@ class PlayerService {
       "WITHCOORD",
       "WITHDIST"
     );
-    console.log("Players in sector:", playersInSector);
     // get players in nearby sectors
     const nearbySectors = this.getNearbySectors(sectorId, x, y, radius);
     const nearbyPlayers = await this.getPlayersInNearbySectors(
       mapId,
       nearbySectors
     );
-    console.log("Nearby players:", nearbyPlayers);
-    return playersInSector
-      .map((player: unknown) => {
-        const [userId, _, coordinates] = player as [
-          string,
-          string,
-          [string, string]
-        ];
-        return userId;
-      })
-      .concat(nearbyPlayers)
-      .filter((playerId) => playerId !== userId);
+    return Array.from(
+      new Set(
+        playersInSector
+          .map((player: unknown) => {
+            const [userId, _, coordinates] = player as [
+              string,
+              string,
+              [string, string]
+            ];
+            return userId;
+          })
+          .concat(nearbyPlayers)
+          .filter((playerId) => playerId !== userId)
+      )
+    );
   }
 
   getNearbySectors(sectorId: string, x: number, y: number, radius: number) {
@@ -328,6 +305,47 @@ class PlayerService {
       players.push(...playerIds);
     }
     return players;
+  }
+
+  async notifyNearbyPlayersPositionUpdate(player: Player) {
+    // notify nearby players
+    const radius = env.NOTIFY_PLAYER_RADIUS;
+    const nearbyPlayerToUpdated = await this.getNearbyPlayers(
+      player.userId,
+      player.position.mapId,
+      player.position.x,
+      player.position.y,
+      radius
+    );
+    console.log("Nearby players to update:", nearbyPlayerToUpdated);
+    for (const playerId of nearbyPlayerToUpdated) {
+      const nearbyPlayer = players[playerId];
+      if (!nearbyPlayer) {
+        console.error("Nearby player not found");
+        continue;
+      }
+      const nearbyPlayerConnection = webSocketManager.getConnection(
+        nearbyPlayer.webSocketId
+      );
+      if (!nearbyPlayerConnection || !nearbyPlayerConnection.socket) {
+        console.error(
+          "Connection not found for nearby player",
+          nearbyPlayer.userId
+        );
+        continue;
+      }
+      nearbyPlayerConnection.socket.send(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: "notifyPlayerPositionUpdate",
+          method: "playerPositionUpdate",
+          params: {
+            userId: player.userId,
+            position: player.position,
+          },
+        })
+      );
+    }
   }
 
   getFunction(method: string): (message: any) => void {

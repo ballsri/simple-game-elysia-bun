@@ -21,13 +21,14 @@ class WebSocketGateway {
     // Validate the data
     // Transform the data
     const joinMessage: JoinMessage = {
+      requestId: data.id,
       userId: data.params.userId,
       name: data.params.name,
       webSocketId: this.id,
     };
     // Publish the message to the message queue
     let partition = 0;
-    await mq.sendMessage(events.JOIN, partition, joinMessage);
+    await mq.sendMessage(data.id, events.JOIN, partition, joinMessage);
   }
 
   // Validate and publish the message to the message queue
@@ -37,6 +38,7 @@ class WebSocketGateway {
     // TODO: get partition from user id and sharding mechanism
     let partition = 0;
     const movePlayerMessage: MovePlayerMessage = {
+      requestId: data.id,
       userId: data.params.userId,
       webSocketId: this.id,
       position: {
@@ -47,7 +49,12 @@ class WebSocketGateway {
       },
     };
 
-    await mq.sendMessage(events.MOVE_PLAYER, partition, movePlayerMessage);
+    await mq.sendMessage(
+      data.id,
+      events.MOVE_PLAYER,
+      partition,
+      movePlayerMessage
+    );
   }
 }
 

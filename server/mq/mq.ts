@@ -66,7 +66,12 @@ class MqAdapter {
     }
   }
 
-  async sendMessage(topic: string, partition: number, message: any) {
+  async sendMessage(
+    key: string,
+    topic: string,
+    partition: number,
+    message: any
+  ) {
     if (!this.producer) {
       console.error("Kafka producer is not initialized");
       return;
@@ -74,7 +79,7 @@ class MqAdapter {
     try {
       await this.producer.send({
         topic,
-        messages: [{ value: JSON.stringify(message), partition }],
+        messages: [{ key, value: JSON.stringify(message), partition }],
       });
       console.log("Kafka message sent successfully: ", message);
     } catch (error) {
